@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bengaluru Skies</title>
+<meta name="description" content="Umbrella or not, and the best time to run today in Bengaluru.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo:#1F2A44; --violet:#5B4B8A; --jacaranda:#B79BE6; --raintree:#2F5D50;
+    --mist:#EEF2F6; --auto:#F2C230;
+    --ink:#1F2A44; --ink-soft:rgba(31,42,68,.72); --panel:rgba(255,255,255,.74); --panel-line:rgba(31,42,68,.12);
+    --sky-a:#86AFD8; --sky-b:#CFC3EC; --sky-c:#F3DCC9;
+    --hill:#9A92BF; --mid:#3E6E60; --front:#24473F;
+  }
+  body[data-mood="rain"]{
+    --ink:#F4F6FA; --ink-soft:rgba(244,246,250,.78); --panel:rgba(20,28,46,.48); --panel-line:rgba(244,246,250,.16);
+    --sky-a:#2E3A55; --sky-b:#56647E; --sky-c:#8E9AAE;
+    --hill:#5F6A84; --mid:#2C4A45; --front:#1A3330;
+  }
+  body[data-mood="night"]{
+    --ink:#F1EEFA; --ink-soft:rgba(241,238,250,.76); --panel:rgba(18,20,44,.5); --panel-line:rgba(241,238,250,.15);
+    --sky-a:#101633; --sky-b:#2B2D5C; --sky-c:#5B4B8A;
+    --hill:#3A3767; --mid:#1F3A3B; --front:#142826;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{
+    font-family:"Hanken Grotesk",system-ui,sans-serif; color:var(--ink);
+    background:var(--sky-a); transition:color .6s ease;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  .scene{position:fixed;inset:0;pointer-events:none;z-index:0;background:linear-gradient(180deg,var(--sky-a) 0%,var(--sky-b) 55%,var(--sky-c) 100%)}
+  .scene svg{position:absolute;left:0;bottom:0;width:100%;height:46vh;min-height:260px}
+  .scene canvas{position:absolute;inset:0;width:100%;height:100%}
+  .sun{position:absolute;right:12vw;top:12vh;width:120px;height:120px;border-radius:50%;
+       background:radial-gradient(circle,#FFF6E0 0%,rgba(255,236,200,.5) 45%,rgba(255,236,200,0) 70%);transition:opacity 1s}
+  body[data-mood="rain"] .sun{opacity:0}
+  body[data-mood="night"] .sun{background:radial-gradient(circle,#F4F1FF 0%,rgba(220,214,255,.35) 30%,rgba(220,214,255,0) 60%);width:90px;height:90px}
+
+  main{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:clamp(28px,6vh,64px) 22px 32vh}
+  .hello{font-size:1.05rem;margin:0;color:var(--ink-soft)}
+  .hello strong{color:var(--ink);font-weight:600}
+
+  .answer{margin-top:clamp(36px,7vh,72px)}
+  .q{font-size:1rem;font-weight:500;margin:0 0 6px;color:var(--ink-soft)}
+  .verdict{font-family:"Young Serif",Georgia,serif;font-weight:400;font-size:clamp(2.6rem,9vw,4.8rem);line-height:1.02;letter-spacing:-.01em;margin:0}
+  .why{font-size:1.15rem;line-height:1.5;max-width:34ch;margin:14px 0 0}
+  .verdict .icon{display:inline-block;width:.78em;height:.78em;vertical-align:-.04em;margin-right:.18em}
+  .verdict .icon svg{width:100%;height:100%}
+
+  .day{margin-top:clamp(48px,9vh,96px);background:var(--panel);border:1px solid var(--panel-line);
+       backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
+       border-radius:22px;padding:20px 18px 16px}
+  .day-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .day-head h2{font-family:"Young Serif",Georgia,serif;font-weight:400;font-size:1.45rem;margin:0}
+  .tabs{display:inline-flex;border:1px solid var(--panel-line);border-radius:999px;padding:3px}
+  .tabs button{font:inherit;font-size:.92rem;font-weight:500;color:var(--ink-soft);background:none;border:0;border-radius:999px;padding:6px 14px;cursor:pointer}
+  .tabs button[aria-selected="true"]{background:var(--ink);color:var(--sky-a)}
+  body[data-mood="dry"] .tabs button[aria-selected="true"]{color:#fff}
+  .tabs button:focus-visible,.retry:focus-visible{outline:2px solid var(--auto);outline-offset:2px}
+
+  .strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(42px,1fr);gap:2px;overflow-x:auto;margin-top:18px;padding-bottom:6px;scrollbar-width:thin}
+  .hr{display:grid;grid-template-rows:18px 96px 22px 18px 20px;justify-items:center;align-items:end;font-size:.8rem;border-radius:12px;padding:4px 0 6px;position:relative}
+  .hr.now{background:rgba(255,255,255,.18);box-shadow:inset 0 0 0 1px var(--panel-line)}
+  .hr .pct{color:var(--ink-soft);font-variant-numeric:tabular-nums;align-self:end}
+  .hr .bar{width:14px;height:100%;border-radius:8px;background:rgba(127,140,170,.18);position:relative;overflow:hidden}
+  .hr .bar i{position:absolute;left:0;right:0;bottom:0;border-radius:8px;background:linear-gradient(180deg,#9FC3F0,#5C8BD6)}
+  body[data-mood="rain"] .hr .bar i,body[data-mood="night"] .hr .bar i{background:linear-gradient(180deg,#C6DCFA,#7FA6E8)}
+  .hr .aq{width:12px;height:12px;border-radius:50%;align-self:center}
+  .hr .t{font-weight:600;font-variant-numeric:tabular-nums}
+  .hr .h{color:var(--ink-soft)}
+  .hr.commute .h{color:var(--ink);font-weight:600}
+  .hr.commute::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:3px;border-radius:2px;background:var(--auto)}
+  .hr.run{box-shadow:inset 0 0 0 2px var(--jacaranda)}
+  .key{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 2px 0;font-size:.85rem;color:var(--ink-soft)}
+  .key span{display:inline-flex;align-items:center;gap:6px}
+  .key i{display:inline-block}
+  .k-bar{width:8px;height:14px;border-radius:4px;background:#6E97DC}
+  .k-dot{width:10px;height:10px;border-radius:50%;background:#7FC8A9}
+  .k-com{width:16px;height:3px;border-radius:2px;background:var(--auto)}
+  .k-run{width:14px;height:14px;border-radius:5px;box-shadow:inset 0 0 0 2px var(--jacaranda)}
+
+  footer{margin-top:16px;padding-top:12px;border-top:1px solid var(--panel-line);font-size:.88rem;color:var(--ink-soft);line-height:1.6}
+  footer a{color:inherit}
+  .note{display:none;margin-top:14px;padding:10px 14px;border-radius:12px;background:rgba(242,194,48,.16);font-size:.9rem;line-height:1.5}
+  .note.show{display:block}
+  .retry{font:inherit;font-weight:600;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+
+  .reveal{opacity:0;transform:translateY(10px)}
+  .ready .reveal{opacity:1;transform:none;transition:opacity .8s ease,transform .8s ease}
+  .ready .reveal.d2{transition-delay:.25s}.ready .reveal.d3{transition-delay:.5s}
+  @media (prefers-reduced-motion:reduce){.reveal,.ready .reveal{opacity:1;transform:none;transition:none}body{transition:none}}
+  @media (max-width:520px){.why{font-size:1.05rem}.day{padding:16px 12px 14px}}
+</style>
+</head>
+<body data-mood="dry">
+  <div class="scene" aria-hidden="true">
+    <div class="sun"></div>
+    <canvas id="fx"></canvas>
+    <svg id="land" viewBox="0 0 1440 420" preserveAspectRatio="xMidYMax slice"></svg>
+  </div>
+
+  <main id="app">
+    <p class="hello reveal" id="hello">Good morning.</p>
+
+    <section class="answer reveal d2" aria-live="polite">
+      <p class="q">Umbrella today?</p>
+      <h1 class="verdict" id="umbrella">Checking the sky…</h1>
+      <p class="why" id="umbrellaWhy"></p>
+    </section>
+
+    <section class="answer reveal d3" aria-live="polite">
+      <p class="q">When should you run?</p>
+      <h2 class="verdict" id="run">&nbsp;</h2>
+      <p class="why" id="runWhy"></p>
+    </section>
+
+    <section class="day reveal d3" aria-label="Hour by hour">
+      <div class="day-head">
+        <h2>Hour by hour</h2>
+        <div class="tabs" role="tablist">
+          <button role="tab" aria-selected="true" data-day="0">Today</button>
+          <button role="tab" aria-selected="false" data-day="1">Tomorrow</button>
+        </div>
+      </div>
+      <div class="strip" id="strip"></div>
+      <div class="key">
+        <span><i class="k-bar"></i>Chance of rain</span>
+        <span><i class="k-dot"></i>Air quality</span>
+        <span><i class="k-com"></i>Commute</span>
+        <span><i class="k-run"></i>Best run</span>
+      </div>
+      <div class="note" id="note"></div>
+      <footer id="foot"></footer>
+    </section>
+  </main>
+
+<script>
+/* ---------- Settings: change these ---------- */
+const CONFIG = {
+  herName: "Monika",           // shows in the greeting
+  madeBy: "Omsri",
+  place: "Koramangala",
+  lat: 12.9352, lon: 77.6245,  // Koramangala, Bengaluru
+  commute: [[8, 9], [18, 19]], // hours she's outside: to office, back home
+  runHours: [[5, 8], [17, 19]],// hours she'd consider running
+  rainYes: 55,                 // % chance that means "take it"
+  rainMaybe: 30                // % chance that means "pack the small one"
+};
+/* -------------------------------------------- */
+
+const TZ = "Asia/Kolkata";
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, "0");
+const fmtHour = h => { const s = h < 12 ? "am" : "pm"; const x = h % 12 || 12; return `${x} ${s}`; };
+const nowParts = () => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return { date:`${p.year}-${p.month}-${p.day}`, hour:+p.hour % 24, minute:+p.minute };
+};
+const aqiInfo = v => v == null ? {c:"rgba(127,140,170,.4)", w:"unknown"}
+  : v <= 50 ? {c:"#7FC8A9", w:"clean"} : v <= 100 ? {c:"#F2C230", w:"okay"}
+  : v <= 150 ? {c:"#F28C38", w:"a bit hazy"} : v <= 200 ? {c:"#E0525B", w:"poor"} : {c:"#9B4DCA", w:"very poor"};
+const RAIN_CODES = new Set([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99]);
+
+let DATA = null, day = 0, sample = false;
+
+async function load(){
+  const q = `latitude=${CONFIG.lat}&longitude=${CONFIG.lon}&timezone=${encodeURIComponent(TZ)}&forecast_days=2`;
+  try{
+    const [w, a] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code&current=temperature_2m,weather_code,is_day&daily=sunrise,sunset`).then(r=>{if(!r.ok)throw 0;return r.json();}),
+      fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${q}&hourly=us_aqi,pm2_5&current=us_aqi`).then(r=>{if(!r.ok)throw 0;return r.json();})
+    ]);
+    DATA = merge(w, a); sample = false;
+  }catch(e){
+    DATA = sampleData(); sample = true;
+  }
+  render();
+}
+
+function merge(w, a){
+  const aIdx = {}; a.hourly.time.forEach((t,i)=>aIdx[t]=i);
+  const hours = w.hourly.time.map((t,i)=>({
+    t, temp:w.hourly.temperature_2m[i], feels:w.hourly.apparent_temperature[i],
+    rain:w.hourly.precipitation_probability[i] ?? 0, mm:w.hourly.precipitation[i] ?? 0,
+    code:w.hourly.weather_code[i],
+    aqi: aIdx[t]!=null ? a.hourly.us_aqi[aIdx[t]] : null
+  }));
+  return { dates:w.daily.time, hours, current:{ code:w.current.weather_code, isDay:w.current.is_day, temp:w.current.temperature_2m }, updated:new Date() };
+}
+
+function sampleData(){
+  const n = nowParts(); const d0 = new Date(n.date+"T00:00:00Z");
+  const dates = [0,1].map(k=>new Date(d0.getTime()+k*864e5).toISOString().slice(0,10));
+  const hours = [];
+  dates.forEach((d,k)=>{ for(let h=0;h<24;h++){
+    const storm = Math.exp(-Math.pow(h-(k?15:17),2)/6);
+    hours.push({ t:`${d}T${pad(h)}:00`, temp:Math.round(23+5*Math.sin((h-9)/24*2*Math.PI)), feels:Math.round(23+6*Math.sin((h-9)/24*2*Math.PI)),
+      rain:Math.round(8+(k?50:68)*storm), mm:storm>.5?1.2:0, code:storm>.6?80:2,
+      aqi:Math.round(42+38*Math.max(0,Math.sin((h-6)/24*2*Math.PI))+(h>18?22:0)) });
+  }});
+  return { dates, hours, current:{code:2,isDay:n.hour>=6&&n.hour<18?1:0,temp:24}, updated:new Date() };
+}
+
+const hoursFor = (dateIdx) => DATA.hours.filter(h=>h.t.startsWith(DATA.dates[dateIdx]));
+const hourOf = h => +h.t.slice(11,13);
+
+function decide(){
+  const n = nowParts();
+  const lastOut = CONFIG.commute[CONFIG.commute.length-1][1];
+  const useTomorrow = n.hour > lastOut;
+  const di = useTomorrow ? 1 : 0;
+  const from = useTomorrow ? CONFIG.commute[0][0] : Math.max(n.hour, CONFIG.commute[0][0]);
+  const span = hoursFor(di).filter(h=>hourOf(h)>=from && hourOf(h)<=lastOut);
+  const peak = span.reduce((m,h)=>h.rain>m.rain?h:m, span[0] || {rain:0,t:"T00"});
+  const mm = span.reduce((s,h)=>s+h.mm,0);
+  const ph = hourOf(peak);
+  const inCommute = CONFIG.commute.some(([a,b])=>ph>=a&&ph<=b);
+  const when = useTomorrow ? "tomorrow" : "today";
+  let u;
+  if(peak.rain >= CONFIG.rainYes || mm >= 1){
+    u = { v:"Take the umbrella.", icon:"open",
+          why:`Showers are likely around ${fmtHour(ph)} (${peak.rain}%)` + (inCommute ? ", right when you're on the road." : ".") };
+  } else if(peak.rain >= CONFIG.rainMaybe){
+    u = { v:"Pack the small one.", icon:"open",
+          why:`There's a ${peak.rain}% chance of a shower around ${fmtHour(ph)}. Probably nothing, but this is Bengaluru.` };
+  } else {
+    u = { v:"Leave it at home.", icon:"closed",
+          why:`Dry ${when}. The chance of rain stays under ${Math.max(10, Math.ceil(peak.rain/10)*10)}% until evening.` };
+  }
+  if(useTomorrow) u.why = "For tomorrow: " + u.why.charAt(0).toLowerCase() + u.why.slice(1);
+
+  // best run hour
+  const pick = (dIdx, minHour) => hoursFor(dIdx).filter(h=>{
+    const x=hourOf(h); return x>=minHour && CONFIG.runHours.some(([a,b])=>x>=a&&x<=b);
+  });
+  let rd = 0, cands = pick(0, n.minute > 20 ? n.hour+1 : n.hour);
+  if(!cands.length){ rd = 1; cands = pick(1, 0); }
+  const score = h => (h.aqi ?? 80) + h.rain*0.9 + Math.max(0,(h.feels ?? h.temp)-25)*7;
+  const best = cands.reduce((m,h)=>score(h)<score(m)?h:m, cands[0]);
+  const bh = hourOf(best), aq = aqiInfo(best.aqi);
+  let r;
+  if((best.aqi ?? 0) > 150 || best.rain >= 70){
+    r = { v:"Treadmill day.", why: best.rain >= 70
+      ? `Even the best slot has a ${best.rain}% chance of rain. Save your knees for tomorrow.`
+      : `The air is ${aq.w} all day (AQI ${best.aqi}). Run indoors if you can.` };
+  } else {
+    const t = Math.round(best.temp);
+    r = { v: (rd ? "Tomorrow, " : "") + fmtHour(bh) + ".",
+          why:`The air is ${aq.w} then (AQI ${best.aqi ?? "n/a"}), it'll be ${t}°, and there's a ${best.rain}% chance of rain.` };
+  }
+  return { u, r, runDay:rd, runHour:bh };
+}
+
+const ICONS = {
+  open:`<svg viewBox="0 0 48 48" fill="none"><path d="M4 24C4 13 13 5 24 5s20 8 20 19c-2.4-2.2-5-2.2-6.7 0-2.4-2.2-5.2-2.2-6.6 0-2-2.2-4.7-2.2-6.7 0-2-2.2-4.7-2.2-6.7 0-1.8-2.2-4.5-2.2-6.6 0-1.8-2.2-4.4-2.2-6.7 0Z" fill="#F2C230"/><path d="M24 24v14a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`,
+  closed:`<svg viewBox="0 0 48 48" fill="none"><path d="M24 4 31 30H17Z" fill="#F2C230"/><path d="M24 30v8a4 4 0 0 1-8 0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`
+};
+
+function render(){
+  const n = nowParts();
+  const cur = DATA.current;
+  const raining = RAIN_CODES.has(cur.code) || (hoursFor(0).find(h=>hourOf(h)===n.hour)?.rain ?? 0) >= 60;
+  document.body.dataset.mood = raining ? "rain" : (cur.isDay ? "dry" : "night");
+  startFx();
+
+  const g = n.hour < 5 ? "Hello" : n.hour < 12 ? "Good morning" : n.hour < 17 ? "Good afternoon" : "Good evening";
+  const dateStr = new Intl.DateTimeFormat("en-IN",{timeZone:TZ,weekday:"long",day:"numeric",month:"long"}).format(new Date());
+  $("hello").innerHTML = `${g}${CONFIG.herName ? ", <strong>"+esc(CONFIG.herName)+"</strong>" : ""}. It's ${dateStr} in ${esc(CONFIG.place)}, ${Math.round(cur.temp)}° outside.`;
+
+  const d = decide();
+  $("umbrella").innerHTML = `<span class="icon">${ICONS[d.u.icon]}</span>${d.u.v}`;
+  $("umbrellaWhy").textContent = d.u.why;
+  $("run").textContent = d.r.v;
+  $("runWhy").textContent = d.r.why;
+  DATA._run = d;
+  drawStrip();
+
+  const time = new Intl.DateTimeFormat("en-IN",{timeZone:TZ,hour:"numeric",minute:"2-digit"}).format(DATA.updated);
+  $("foot").innerHTML = `Updated ${time.toLowerCase()} IST. Weather and air from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.<br>Made for you by ${esc(CONFIG.madeBy)}, from the other side of the world.`;
+  const note = $("note");
+  if(sample){ note.innerHTML = `Live weather didn't load, so this shows sample weather. It loads properly once the page is hosted (for example on GitHub Pages). <button class="retry" id="retry">Try again</button>`; note.classList.add("show"); $("retry").onclick = load; }
+  else note.classList.remove("show");
+}
+
+function drawStrip(){
+  const n = nowParts();
+  const run = DATA._run;
+  const list = hoursFor(day).filter(h=>hourOf(h)>=5);
+  $("strip").innerHTML = list.map(h=>{
+    const x = hourOf(h), a = aqiInfo(h.aqi);
+    const cls = ["hr"];
+    if(day===0 && x===n.hour) cls.push("now");
+    if(CONFIG.commute.some(([p,q])=>x>=p&&x<=q)) cls.push("commute");
+    if(run.runDay===day && run.runHour===x) cls.push("run");
+    const lbl = `${fmtHour(x)}: ${h.rain}% chance of rain, ${Math.round(h.temp)} degrees, air ${a.w}`;
+    return `<div class="${cls.join(" ")}" role="img" aria-label="${lbl}" title="${lbl}${h.aqi!=null?` (AQI ${h.aqi})`:""}">
+      <span class="pct">${h.rain>=20?h.rain+"%":""}</span>
+      <span class="bar"><i style="height:${Math.max(0,h.rain)}%"></i></span>
+      <span class="aq" style="background:${a.c}"></span>
+      <span class="t">${Math.round(h.temp)}°</span>
+      <span class="h">${x===12?"noon":(x%12||12)+(x<12?"a":"p")}</span>
+    </div>`;
+  }).join("");
+  const nowEl = $("strip").querySelector(".now");
+  if(nowEl) $("strip").scrollLeft = Math.max(0, nowEl.offsetLeft - 60);
+}
+
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{
+  day = +b.dataset.day;
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected", x===b));
+  drawStrip();
+}));
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- Landscape: Cubbon Park rain trees ---------- */
+(function land(){
+  let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
+  const tree = (x, base, s, fill) => {
+    const w = 120*s, h = 46*s, tr = 70*s;
+    let blobs = "";
+    for(let i=0;i<7;i++){
+      const bx = x + (rnd()-.5)*w*1.2, by = base - tr - (rnd())*h*.5;
+      blobs += `<ellipse cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" rx="${(w*(.35+rnd()*.3)).toFixed(1)}" ry="${(h*(.45+rnd()*.3)).toFixed(1)}"/>`;
+    }
+    return `<g fill="${fill}"><path d="M${x-3*s} ${base} L${x-2*s} ${base-tr} L${x+2*s} ${base-tr} L${x+3*s} ${base}Z"/><path d="M${x} ${base-tr*.6} L${x-30*s} ${base-tr-6*s} L${x-27*s} ${base-tr-2*s}Z M${x} ${base-tr*.55} L${x+34*s} ${base-tr-8*s} L${x+30*s} ${base-tr-3*s}Z"/>${blobs}</g>`;
+  };
+  let svg = `<path d="M0 250 C180 205 300 230 460 210 S760 170 900 205 1180 190 1440 215 V420 H0Z" fill="var(--hill)" opacity=".55"/>`;
+  // low skyline
+  let city = ""; let x = 0;
+  while(x < 1440){ const w = 26+rnd()*44, h = 30+rnd()*70; city += `<rect x="${x.toFixed(0)}" y="${(300-h).toFixed(0)}" width="${w.toFixed(0)}" height="${(h+120).toFixed(0)}"/>`; x += w + 4 + rnd()*10; }
+  city += `<rect x="1010" y="150" width="6" height="160"/><rect x="1004" y="190" width="18" height="4"/><rect x="1006" y="215" width="14" height="4"/>`;
+  svg += `<g fill="var(--hill)" opacity=".9">${city}</g>`;
+  svg += `<path d="M0 330 H1440 V420 H0Z" fill="var(--mid)"/>`;
+  [80,300,560,820,1090,1330].forEach(tx=>svg += tree(tx+rnd()*40, 336, .9+rnd()*.4, "var(--mid)"));
+  svg += `<path d="M0 372 C240 360 480 380 720 368 S1200 362 1440 372 V420 H0Z" fill="var(--front)"/>`;
+  [-20,200,430,700,960,1220,1460].forEach(tx=>svg += tree(tx+rnd()*50, 392, 1.3+rnd()*.5, "var(--front)"));
+  $("land").innerHTML = svg;
+})();
+
+/* ---------- Rain or falling jacaranda petals ---------- */
+let fxRaf = 0;
+function startFx(){
+  const c = $("fx"), ctx = c.getContext("2d"), mood = document.body.dataset.mood;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  cancelAnimationFrame(fxRaf);
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const size = () => { c.width = innerWidth*dpr; c.height = innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); };
+  size(); onresize = size;
+  const W = () => innerWidth, H = () => innerHeight;
+  const N = mood === "rain" ? Math.round(W()/5) : Math.round(W()/40);
+  const parts = Array.from({length:N}, () => ({ x:Math.random()*W(), y:Math.random()*H(), v:.4+Math.random(), r:Math.random()*Math.PI*2, s:.6+Math.random()*.8 }));
+  const frame = () => {
+    ctx.clearRect(0,0,W(),H());
+    if(mood === "rain"){
+      ctx.strokeStyle = "rgba(220,230,245,.38)"; ctx.lineWidth = 1.1; ctx.beginPath();
+      for(const p of parts){ ctx.moveTo(p.x,p.y); ctx.lineTo(p.x-3*p.s,p.y+16*p.s);
+        if(!reduce){ p.y += 9*p.v+6; p.x -= 1.6; if(p.y>H()){ p.y=-20; p.x=Math.random()*(W()+60); } } }
+      ctx.stroke();
+    } else {
+      for(const p of parts){
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+        ctx.fillStyle = mood==="night" ? "rgba(200,184,240,.55)" : "rgba(160,124,220,.7)";
+        ctx.beginPath(); ctx.ellipse(0,0,5*p.s,3*p.s,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+        if(!reduce){ p.y += .35*p.v+.2; p.x += Math.sin((p.y+p.r*50)/60)*.5; p.r += .01*p.v;
+          if(p.y>H()+10){ p.y=-10; p.x=Math.random()*W(); } }
+      }
+    }
+    if(!reduce) fxRaf = requestAnimationFrame(frame);
+  };
+  frame();
+}
+
+load().then(()=>requestAnimationFrame(()=>document.body.classList.add("ready")));
+setInterval(load, 30*60*1000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && DATA && Date.now()-DATA.updated > 15*60*1000) load(); });
+</script>
+</body>
+</html>
