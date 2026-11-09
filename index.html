@@ -42,8 +42,10 @@
   body[data-mood="night"] .sun{background:radial-gradient(circle,#F4F1FF 0%,rgba(220,214,255,.35) 30%,rgba(220,214,255,0) 60%);width:90px;height:90px}
 
   main{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:clamp(96px,13vh,120px) 22px 32vh}
-  .hello{font-size:1.05rem;margin:0;color:var(--ink-soft)}
-  .hello strong{color:var(--ink);font-weight:600}
+  .hello{margin:0;max-width:40ch}
+  .hello .l1{display:block;font-size:1.3rem;line-height:1.4;color:var(--ink)}
+  .hello .l1 strong{font-weight:600}
+  .hello .l2{display:block;margin-top:6px;font-size:1rem;color:var(--ink-soft)}
 
   .answer{margin-top:clamp(36px,7vh,72px)}
   .q{font-size:1rem;font-weight:500;margin:0 0 6px;color:var(--ink-soft)}
@@ -181,7 +183,7 @@
     </section>
 
     <section class="day parks reveal d3" aria-label="Where to run today" aria-live="polite">
-      <div class="day-head"><h2>Where to run today</h2></div>
+      <div class="day-head"><h2 id="parkHead">Where your running shoes are headed</h2></div>
       <div class="park-pick" id="parkPick">
         <p class="name" id="parkName">&nbsp;</p>
         <p class="reason" id="parkWhy"></p>
@@ -325,7 +327,9 @@ function render(){
 
   const g = n.hour < 5 ? "Hello" : n.hour < 12 ? "Good morning" : n.hour < 17 ? "Good afternoon" : "Good evening";
   const dateStr = new Intl.DateTimeFormat("en-IN",{timeZone:TZ,weekday:"long",day:"numeric",month:"long"}).format(new Date());
-  $("hello").innerHTML = `${g}${CONFIG.herName ? ", <strong>"+esc(CONFIG.herName)+"</strong>" : ""}. It's ${dateStr} in ${esc(CONFIG.place)}, ${Math.round(cur.temp)}° outside.`;
+  const fun = funLine(n.hour, document.body.dataset.mood);
+  $("hello").innerHTML = `<span class="l1">${g}${CONFIG.herName ? ", <strong>"+esc(CONFIG.herName)+"</strong>" : ""}. ${fun}</span>`
+    + `<span class="l2">It's ${dateStr} in ${esc(CONFIG.place)}, and ${Math.round(cur.temp)}° outside.</span>`;
 
   const d = decide();
   $("umbrella").innerHTML = `<span class="icon">${ICONS[d.u.icon]}</span>${d.u.v}`;
@@ -431,6 +435,46 @@ function startFx(){
   frame();
 }
 
+/* ---------- Fun lines: a new one each day ---------- */
+const dayIndex = () => Math.floor(Date.now()/864e5 + 5.5/24);
+const pickDaily = (list, salt=0) => list[(dayIndex() + salt) % list.length];
+function funLine(hour, mood){
+  if(mood === "rain") return pickDaily([
+    "The clouds are being dramatic again.",
+    "Bengaluru is doing its surprise-shower thing.",
+    "The sky didn't check the forecast either.",
+    "Somewhere, an auto driver is refusing to go anywhere."
+  ]);
+  if(hour < 5) return pickDaily([
+    "Either you're up very early or very late. No judgement.",
+    "Even the dosa batter is still asleep."
+  ]);
+  if(hour < 12) return pickDaily([
+    "Filter coffee first. Then this.",
+    "The sky has opinions today. Here they are.",
+    "Someone in Washington checked the weather for you.",
+    "Here's today's weather, in less time than the Silk Board signal."
+  ]);
+  if(hour < 17) return pickDaily([
+    "Halfway through the day. The sky is still making up its mind.",
+    "Post-lunch slump? The sky gets one too.",
+    "Someone in Washington just woke up and thought of you."
+  ]);
+  return pickDaily([
+    "The sky's had a long day too.",
+    "Day's done. Here's what the sky has planned next.",
+    "Time to log off. The trees are waiting.",
+    "Someone in Washington is having his morning coffee and thinking of you."
+  ]);
+}
+const PARK_HEADS = [
+  "Where your running shoes are headed",
+  "Today's prescription: trees",
+  "We picked a park so you don't have to",
+  "Your shoes already know the way",
+  "Today's green light"
+];
+
 /* ---------- Parks near home (locations and sizes from OpenStreetMap) ---------- */
 const PARKS = [
   { id:"ngv",    name:"NGV Park",          lat:12.94465, lon:77.62390, acres:1.7, home:true,
@@ -476,6 +520,7 @@ let parkState = null;
 function drawParks(run){
   const choice = pickPark(run);
   parkState = { choice, selected: choice.park.id };
+  $("parkHead").textContent = choice.skip ? "Your shoes get a day off" : pickDaily(PARK_HEADS);
   $("parkName").textContent = choice.skip ? "Maybe skip the park today." : choice.park.name + ".";
   $("parkWhy").textContent = choice.why;
   $("parkList").innerHTML = PARKS.map(p=>`<li><button type="button" data-park="${p.id}" aria-pressed="${p.id===choice.park.id}">
