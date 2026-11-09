@@ -101,7 +101,6 @@
   .clock .wday{font-size:.78rem;color:var(--ink-soft);display:inline-flex;align-items:center;gap:4px}
   .clock .wday svg{width:12px;height:12px}
   @media (max-width:520px){.clocks{top:12px;right:12px;padding:6px 2px}.clock{padding:0 9px}.clock .time{font-size:1.1rem}}
-  .parks{margin-top:20px}
   .park-pick{margin:14px 0 0}
   .park-pick .name{font-family:"Young Serif",Georgia,serif;font-size:clamp(1.9rem,6vw,2.6rem);line-height:1.05;margin:0}
   .park-pick .reason{font-size:1.05rem;line-height:1.5;max-width:46ch;margin:8px 0 0}
@@ -131,6 +130,39 @@
   .fade-swap{animation:swap .45s ease}
   @keyframes swap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.map .leaf,.map .ripple.go,.fade-swap{animation:none}.map .park{transition:none}}
+  .parks{position:relative;margin-top:118px}
+  .buddy{position:absolute;right:22px;top:-112px;width:118px;height:118px;cursor:pointer;-webkit-tap-highlight-color:transparent;background:none;border:0;padding:0}
+  .buddy:focus-visible{outline:2px solid var(--auto);outline-offset:4px;border-radius:12px}
+  .buddy svg{width:100%;height:100%;overflow:visible}
+  .bubble{position:absolute;right:146px;top:-104px;max-width:210px;background:#fff;color:#1F2A44;font-size:.92rem;line-height:1.35;
+          padding:9px 13px;border-radius:16px 16px 4px 16px;box-shadow:0 6px 18px rgba(31,42,68,.18);transform-origin:100% 100%}
+  .bubble small{display:block;margin-top:3px;color:#5B4B8A;font-weight:600}
+  .bubble.pop{animation:pop .5s cubic-bezier(.3,1.7,.5,1) both}
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+  #dog .tail{transform-box:view-box;transform-origin:44px 128px;animation:wag .45s ease-in-out infinite alternate}
+  @keyframes wag{from{transform:rotate(-14deg)}to{transform:rotate(18deg)}}
+  #dog .eyes{transform-box:fill-box;transform-origin:center;animation:blink 5s infinite}
+  @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+  #dog .ear-r{transform-box:fill-box;transform-origin:20% 30%;animation:flick 7s infinite}
+  @keyframes flick{0%,85%,100%{transform:rotate(0)}88%{transform:rotate(-12deg)}91%{transform:rotate(4deg)}}
+  #dog .head{transform-box:view-box;transform-origin:82px 82px;transition:transform .4s ease}
+  .buddy:hover #dog .head{transform:rotate(-7deg)}
+  #dog.hop{animation:hop .55s cubic-bezier(.3,1.5,.5,1)}
+  @keyframes hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-14px)}}
+  #dog .coat,#dog .zzz,#dog .sleep-eyes,#dog .tongue{display:none}
+  #dog[data-state="rain"] .coat{display:inline}
+  #dog[data-state="happy"] .tongue{display:inline}
+  #dog[data-state="sleep"] .zzz,#dog[data-state="sleep"] .sleep-eyes{display:inline}
+  #dog[data-state="sleep"] .eyes,#dog[data-state="sleep"] .tongue{display:none}
+  #dog[data-state="sleep"] .tail{animation:none;transform:rotate(-10deg)}
+  #dog[data-state="sleep"] .head{transform:rotate(9deg) translateY(3px)}
+  #dog[data-state="sleep"] .breathe{transform-box:fill-box;transform-origin:50% 100%;animation:breathe 3.2s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.03,1.04)}}
+  #dog .zzz text{font-family:"Young Serif",Georgia,serif;fill:var(--ink);animation:zz 3s ease-in infinite;opacity:0}
+  #dog .zzz text:nth-child(2){animation-delay:1s}#dog .zzz text:nth-child(3){animation-delay:2s}
+  @keyframes zz{0%{opacity:0;transform:translate(0,0)}30%{opacity:.9}100%{opacity:0;transform:translate(12px,-22px)}}
+  @media (max-width:520px){.buddy{right:10px;width:104px;height:104px;top:-99px}.bubble{right:118px;top:-96px;max-width:175px;font-size:.86rem}}
+  @media (prefers-reduced-motion:reduce){#dog .tail,#dog .eyes,#dog .ear-r,#dog .breathe,#dog .zzz text,#dog.hop,.bubble.pop{animation:none}#dog .zzz text{opacity:.8}}
   .reveal{opacity:0;transform:translateY(10px)}
   .ready .reveal{opacity:1;transform:none;transition:opacity .8s ease,transform .8s ease}
   .ready .reveal.d2{transition-delay:.25s}.ready .reveal.d3{transition-delay:.5s}
@@ -183,6 +215,48 @@
     </section>
 
     <section class="day parks reveal d3" aria-label="Where to run today" aria-live="polite">
+      <div class="bubble" id="bubble" role="status"></div>
+      <button class="buddy" id="buddy" type="button" aria-label="Pet the dog">
+        <svg id="dog" data-state="happy" viewBox="0 0 160 150" aria-hidden="true">
+          <ellipse cx="82" cy="146" rx="50" ry="5" fill="#1F2A44" opacity=".18"/>
+          <g class="breathe">
+            <path class="tail" d="M46 128 C28 127 22 112 31 99" stroke="#C9935A" stroke-width="8" stroke-linecap="round" fill="none"/>
+            <ellipse cx="58" cy="120" rx="27" ry="24" fill="#B67F48"/>
+            <path d="M60 72 C42 86 42 128 58 142 L108 142 C122 128 122 86 104 72 Z" fill="#C9935A"/>
+            <ellipse cx="82" cy="104" rx="16" ry="23" fill="#DDB07A"/>
+            <g class="coat">
+              <path d="M58 86 C45 102 47 128 60 140 L106 140 C119 128 120 102 106 86 Q82 99 58 86Z" fill="#F2C230"/>
+              <path d="M82 94 V140" stroke="#D9A920" stroke-width="2"/>
+              <circle cx="88" cy="106" r="2.6" fill="#1F2A44"/><circle cx="88" cy="120" r="2.6" fill="#1F2A44"/>
+            </g>
+            <rect x="65" y="108" width="15" height="35" rx="7.5" fill="#C9935A"/>
+            <rect x="86" y="108" width="15" height="35" rx="7.5" fill="#C9935A"/>
+            <ellipse cx="72.5" cy="143" rx="10" ry="5" fill="#DDB07A"/><ellipse cx="93.5" cy="143" rx="10" ry="5" fill="#DDB07A"/>
+            <path d="M70 141v4M75 141v4M91 141v4M96 141v4" stroke="#A06C3C" stroke-width="1.4" stroke-linecap="round"/>
+            <path d="M60 80 Q82 93 104 80 L104 87 Q82 100 60 87Z" fill="#8E6CCF"/>
+            <circle cx="82" cy="95" r="4.4" fill="#F2C230"/><circle cx="82" cy="95" r="1.4" fill="#D9A920"/>
+          </g>
+          <g class="head">
+            <path d="M53 33 C44 32 39 45 45 55 L58 44 Z" fill="#5E3B22"/>
+            <path class="ear-r" d="M111 33 C120 32 125 45 119 55 L106 44 Z" fill="#5E3B22"/>
+            <path d="M54 31 C60 18 104 18 110 31 C118 45 116 66 108 76 C100 86 64 86 56 76 C48 66 46 45 54 31 Z" fill="#C9935A"/>
+            <path d="M70 33 q12 -5 24 0 M72 39 q10 -4 20 0" stroke="#A06C3C" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <path d="M63 49 C68 43 96 43 101 49 C108 60 106 76 98 82 C90 88 74 88 66 82 C58 76 56 60 63 49 Z" fill="#3A2C25"/>
+            <g class="eyes">
+              <circle cx="72" cy="53" r="4.6" fill="#6B4426"/><circle cx="92" cy="53" r="4.6" fill="#6B4426"/>
+              <circle cx="72" cy="53" r="3" fill="#140F0C"/><circle cx="92" cy="53" r="3" fill="#140F0C"/>
+              <circle cx="73.2" cy="51.8" r="1.1" fill="#fff"/><circle cx="93.2" cy="51.8" r="1.1" fill="#fff"/>
+            </g>
+            <path class="sleep-eyes" d="M67.5 53 q4.5 3.5 9 0 M87.5 53 q4.5 3.5 9 0" stroke="#C9935A" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <ellipse cx="82" cy="69" rx="16" ry="11" fill="#2A1F1A"/>
+            <path d="M75.5 61 q6.5 -4.5 13 0 q0 6 -6.5 7.5 q-6.5 -1.5 -6.5 -7.5Z" fill="#0E0B0A"/>
+            <ellipse cx="80" cy="61.5" rx="2.2" ry="1" fill="#fff" opacity=".35"/>
+            <path class="tongue" d="M78.5 74 q3.5 9 7 0 Z" fill="#E57C8A"/>
+            <path d="M82 68.5 v4 M82 72.5 q-6 6 -12 1.5 M82 72.5 q6 6 12 1.5" stroke="#0E0B0A" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          </g>
+          <g class="zzz"><text x="112" y="30" font-size="13">z</text><text x="120" y="20" font-size="16">z</text><text x="130" y="8" font-size="19">z</text></g>
+        </svg>
+      </button>
       <div class="day-head"><h2 id="parkHead">Where your running shoes are headed</h2></div>
       <div class="park-pick" id="parkPick">
         <p class="name" id="parkName">&nbsp;</p>
@@ -203,7 +277,8 @@ const CONFIG = {
   place: "Koramangala",
   lat: 12.9352, lon: 77.6245,  // Koramangala, Bengaluru
   commute: [[8, 9], [18, 19]], // hours she's outside: to office, back home
-  runHours: [[5, 8], [17, 19]],// hours she'd consider running
+  runHours: [[5, 8], [17, 19]],
+  dogName: "",                // her bullmastiff's name, signs his speech bubble// hours she'd consider running
   rainYes: 55,                 // % chance that means "take it"
   rainMaybe: 30                // % chance that means "pack the small one"
 };
@@ -528,6 +603,7 @@ function drawParks(run){
       ${p.id===choice.park.id && !choice.skip ? '<em class="tag">Today\'s pick</em>' : ""}</button></li>`).join("");
   $("parkList").querySelectorAll("button").forEach(btn=>btn.onclick=()=>selectPark(btn.dataset.park, true));
   drawMap(choice.park.id, true);
+  setDog(run, choice);
 }
 
 function selectPark(id, user){
@@ -591,6 +667,31 @@ function drawMap(targetId, animate){
   };
   requestAnimationFrame(step);
 }
+
+/* ---------- The bullmastiff ---------- */
+let dogLine = "";
+function setDog(run, choice){
+  const dog = $("dog"), b = run.best, feels = Math.round(b.feels ?? b.temp);
+  let state = "happy", line;
+  if(choice.skip){ state = "sleep"; line = pickDaily(["Couch day. Best day.", "Wake me when the sky behaves.", "I'm guarding the sofa today."]); }
+  else if(b.rain >= 40 || document.body.dataset.mood === "rain"){ state = "rain"; line = pickDaily(["Raincoat's on. Let's make it quick.", "Short walk. My paws hate puddles.", "I'll get wet if you get wet."]); }
+  else if(choice.park.id === "agara"){ line = "Lake day! Long walk now, long nap after."; }
+  else if(feels >= 28){ line = "It's warm. Shady trees only, please."; }
+  else line = pickDaily(["Leash is ready. Are you?", "I'll race you to the gate.", "Sniffing every tree counts as cardio.", "Treats after, right?", "I already told the squirrels we're coming."], 1);
+  dog.dataset.state = state; dogLine = line; sayDog(line);
+}
+function sayDog(text){
+  const bub = $("bubble");
+  bub.innerHTML = esc(text) + (CONFIG.dogName ? `<small>${esc(CONFIG.dogName)}</small>` : "");
+  bub.classList.remove("pop"); void bub.offsetWidth; bub.classList.add("pop");
+}
+$("buddy").addEventListener("click", ()=>{
+  const dog = $("dog");
+  if(dog.dataset.state === "sleep"){ sayDog("Five more minutes…"); setTimeout(()=>sayDog(dogLine), 1800); return; }
+  dog.classList.remove("hop"); void dog.getBBox(); dog.classList.add("hop");
+  sayDog(pickDaily(["Woof!", "Woof woof!", "Boof."], Math.floor(Math.random()*3)));
+  clearTimeout(window._dogT); window._dogT = setTimeout(()=>sayDog(dogLine), 1600);
+});
 
 /* ---------- Two-city clock ---------- */
 const SUN_ICON = `<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.2" fill="#F2C230"/></svg>`;
