@@ -99,6 +99,36 @@
   .clock .wday{font-size:.78rem;color:var(--ink-soft);display:inline-flex;align-items:center;gap:4px}
   .clock .wday svg{width:12px;height:12px}
   @media (max-width:520px){.clocks{top:12px;right:12px;padding:6px 2px}.clock{padding:0 9px}.clock .time{font-size:1.1rem}}
+  .parks{margin-top:20px}
+  .park-pick{margin:14px 0 0}
+  .park-pick .name{font-family:"Young Serif",Georgia,serif;font-size:clamp(1.9rem,6vw,2.6rem);line-height:1.05;margin:0}
+  .park-pick .reason{font-size:1.05rem;line-height:1.5;max-width:46ch;margin:8px 0 0}
+  .map{width:100%;height:auto;display:block;margin-top:14px;border-radius:16px;background:rgba(255,255,255,.22);border:1px solid var(--panel-line)}
+  body[data-mood="rain"] .map,body[data-mood="night"] .map{background:rgba(255,255,255,.05)}
+  .map text{font-family:"Hanken Grotesk",system-ui,sans-serif;font-size:14px;fill:var(--ink)}
+  .map .sub{font-size:12px;fill:var(--ink-soft)}
+  .map .grid{stroke:var(--panel-line);stroke-width:1}
+  .map .street{fill:none;stroke:var(--panel-line);stroke-width:7;stroke-linecap:round}
+  .map .park{transition:transform .5s cubic-bezier(.3,1.6,.5,1);transform-box:fill-box;transform-origin:center}
+  .map .park.on{transform:scale(1.18)}
+  .map .route{fill:none;stroke:var(--auto);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:1 9}
+  .map .route-draw{fill:none;stroke:var(--auto);stroke-width:3.5;stroke-linecap:round}
+  .map .ripple{fill:none;stroke:var(--jacaranda);stroke-width:2;opacity:0}
+  .map .ripple.go{animation:ripple 1.6s ease-out 2}
+  @keyframes ripple{from{r:10;opacity:.9}to{r:40;opacity:0}}
+  .map .leaf{transform-box:fill-box;transform-origin:50% 100%;animation:sway 4s ease-in-out infinite}
+  @keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  .park-list{list-style:none;padding:0;margin:14px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+  .park-list button{width:100%;text-align:left;font:inherit;color:var(--ink);background:rgba(255,255,255,.14);border:1px solid var(--panel-line);border-radius:14px;padding:10px 12px;cursor:pointer;transition:background .25s,border-color .25s,transform .25s}
+  .park-list button:hover{background:rgba(255,255,255,.26)}
+  .park-list button[aria-pressed="true"]{border-color:var(--jacaranda);background:rgba(183,155,230,.22)}
+  .park-list button:focus-visible{outline:2px solid var(--auto);outline-offset:2px}
+  .park-list b{display:block;font-weight:600;font-size:.95rem}
+  .park-list span{display:block;font-size:.82rem;color:var(--ink-soft);margin-top:2px}
+  .park-list .tag{display:inline-block;margin-top:6px;font-size:.75rem;font-weight:600;color:var(--indigo);background:var(--auto);border-radius:999px;padding:2px 8px}
+  .fade-swap{animation:swap .45s ease}
+  @keyframes swap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.map .leaf,.map .ripple.go,.fade-swap{animation:none}.map .park{transition:none}}
   .reveal{opacity:0;transform:translateY(10px)}
   .ready .reveal{opacity:1;transform:none;transition:opacity .8s ease,transform .8s ease}
   .ready .reveal.d2{transition-delay:.25s}.ready .reveal.d3{transition-delay:.5s}
@@ -148,6 +178,16 @@
         <span><i class="k-com"></i>Commute</span>
         <span><i class="k-run"></i>Best run</span>
       </div>
+    </section>
+
+    <section class="day parks reveal d3" aria-label="Where to run today" aria-live="polite">
+      <div class="day-head"><h2>Where to run today</h2></div>
+      <div class="park-pick" id="parkPick">
+        <p class="name" id="parkName">&nbsp;</p>
+        <p class="reason" id="parkWhy"></p>
+      </div>
+      <svg class="map" id="map" viewBox="0 0 420 290" role="img" aria-label="Map of parks near home"></svg>
+      <ul class="park-list" id="parkList"></ul>
       <div class="note" id="note"></div>
       <footer id="foot"></footer>
     </section>
@@ -267,7 +307,8 @@ function decide(){
     r = { v: (rd ? "Tomorrow, " : "") + fmtHour(bh) + ".",
           why:`The air is ${aq.w} then (AQI ${best.aqi ?? "n/a"}), it'll be ${t}°, and there's a ${best.rain}% chance of rain.` };
   }
-  return { u, r, runDay:rd, runHour:bh };
+  const treadmill = (best.aqi ?? 0) > 150 || best.rain >= 70;
+  return { u, r, runDay:rd, runHour:bh, best, treadmill };
 }
 
 const ICONS = {
@@ -293,6 +334,7 @@ function render(){
   $("runWhy").textContent = d.r.why;
   DATA._run = d;
   drawStrip();
+  drawParks(d);
 
   const time = new Intl.DateTimeFormat("en-IN",{timeZone:TZ,hour:"numeric",minute:"2-digit"}).format(DATA.updated);
   $("foot").innerHTML = `Updated ${time.toLowerCase()} IST. Weather and air from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.<br>Made for you by ${esc(CONFIG.madeBy)}, from the other side of the world.`;
@@ -387,6 +429,122 @@ function startFx(){
     if(!reduce) fxRaf = requestAnimationFrame(frame);
   };
   frame();
+}
+
+/* ---------- Parks near home (locations and sizes from OpenStreetMap) ---------- */
+const PARKS = [
+  { id:"ngv",    name:"NGV Park",          lat:12.94465, lon:77.62390, acres:1.7, home:true,
+    note:"Right by home and lined with trees." },
+  { id:"lakshmi",name:"Lakshmi Devi Park", lat:12.93905, lon:77.61972, acres:2.4,
+    note:"The biggest of the neighbourhood parks, a favourite with walkers." },
+  { id:"leena",  name:"Leena Park",        lat:12.93762, lon:77.62115, acres:1.9, nudge:[12,6],
+    note:"A change of scene in 6th Block." },
+  { id:"agara",  name:"Agara Lake",        lat:12.92093, lon:77.64159, acres:95, lake:true,
+    note:"A flat, paved track of about 3 km around the lake." }
+];
+const HOME = PARKS[0];
+const kmBetween = (a,b) => { const R=6371, toR=Math.PI/180;
+  const dLat=(b.lat-a.lat)*toR, dLon=(b.lon-a.lon)*toR;
+  const h=Math.sin(dLat/2)**2+Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h)); };
+PARKS.forEach(p=>{ p.km = kmBetween(HOME,p);
+  const dx=(p.lon-HOME.lon)*111.32*Math.cos(HOME.lat*Math.PI/180), dy=(p.lat-HOME.lat)*110.57;
+  const r = 102*Math.sqrt(p.km), ang = Math.atan2(dy,dx);
+  p.x = 205 + (p.km ? r*Math.cos(ang) : 0) + (p.nudge?.[0] ?? 0); p.y = 56 - (p.km ? r*Math.sin(ang) : 0) + (p.nudge?.[1] ?? 0); });
+
+function pickPark(run){
+  const b = run.best, w = aqiInfo(b.aqi).w, feels = Math.round(b.feels ?? b.temp);
+  const runDate = new Date(DATA.dates[run.runDay]+"T12:00:00");
+  const weekend = [0,6].includes(runDate.getDay());
+  const doy = Math.floor((runDate - new Date(runDate.getFullYear(),0,0))/864e5);
+  const P = id => PARKS.find(p=>p.id===id);
+  if(run.treadmill) return { park:P("ngv"), skip:true,
+    why: b.rain >= 70 ? "Heavy rain is likely at every good running time. If it clears, NGV is right by home." : `The air is ${w} today. If you go out anyway, keep it short at NGV.` };
+  if(b.rain >= 40) return { park:P("ngv"), why:`There's a ${b.rain}% chance of rain, so stay close. NGV is right by home if it starts pouring.` };
+  if(weekend && (b.aqi ?? 999) <= 100 && b.rain < 30) return { park:P("agara"), why:`It's the weekend and the air is ${w}. Go long: about 3 km of flat track around the lake.` };
+  if(feels >= 28) return { park:P("ngv"), why:`It'll feel like ${feels}°. NGV's trees keep you in the shade.` };
+  const rota = ["lakshmi","leena","ngv"][doy % 3];
+  const why = {
+    lakshmi:`Dry, and the air is ${w}. Lakshmi Devi is the biggest park nearby at 2.4 acres.`,
+    leena:`Good conditions for a change of scene: Leena Park in 6th Block, under a kilometre away.`,
+    ngv:`An easy one today. NGV is right by home, the air is ${w} and it's dry.`
+  }[rota];
+  return { park:P(rota), why };
+}
+
+let parkState = null;
+function drawParks(run){
+  const choice = pickPark(run);
+  parkState = { choice, selected: choice.park.id };
+  $("parkName").textContent = choice.skip ? "Maybe skip the park today." : choice.park.name + ".";
+  $("parkWhy").textContent = choice.why;
+  $("parkList").innerHTML = PARKS.map(p=>`<li><button type="button" data-park="${p.id}" aria-pressed="${p.id===choice.park.id}">
+      <b>${p.name}</b><span>${p.home ? "Home" : p.km.toFixed(1)+" km from home"}, ${p.acres} acres</span>
+      ${p.id===choice.park.id && !choice.skip ? '<em class="tag">Today\'s pick</em>' : ""}</button></li>`).join("");
+  $("parkList").querySelectorAll("button").forEach(btn=>btn.onclick=()=>selectPark(btn.dataset.park, true));
+  drawMap(choice.park.id, true);
+}
+
+function selectPark(id, user){
+  const p = PARKS.find(x=>x.id===id); parkState.selected = id;
+  $("parkList").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.park===id));
+  const pick = parkState.choice;
+  const box = $("parkPick"); box.classList.remove("fade-swap"); void box.offsetWidth; box.classList.add("fade-swap");
+  if(id === pick.park.id){ $("parkName").textContent = pick.skip ? "Maybe skip the park today." : p.name+"."; $("parkWhy").textContent = pick.why; }
+  else { $("parkName").textContent = p.name + "."; $("parkWhy").textContent = p.note + (p.home ? "" : ` ${p.km.toFixed(1)} km from home.`); }
+  drawMap(id, user);
+}
+
+function drawMap(targetId, animate){
+  const svg = $("map"), t = PARKS.find(p=>p.id===targetId);
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let g = "";
+  for(let x=20;x<420;x+=40) g += `<line class="grid" x1="${x}" y1="0" x2="${x}" y2="290" stroke-dasharray="2 6"/>`;
+  g += `<path class="street" d="M-10 92 C90 80 180 110 430 96"/><path class="street" d="M120 -10 C140 90 180 190 200 300"/><path class="street" d="M230 -10 C240 100 300 170 430 210"/>`;
+  // parks
+  PARKS.forEach(p=>{
+    const on = p.id===targetId ? " on" : "";
+    if(p.lake){
+      g += `<g class="park${on}" data-id="${p.id}"><ellipse cx="${p.x}" cy="${p.y}" rx="44" ry="30" fill="#3E6E60" opacity=".55"/><ellipse cx="${p.x}" cy="${p.y}" rx="34" ry="21" fill="#7FA6E8"/>
+            <path d="M${p.x-18} ${p.y-2} q6 -4 12 0 t12 0" stroke="#fff" stroke-opacity=".6" fill="none"/><path d="M${p.x-6} ${p.y+7} q6 -4 12 0 t12 0" stroke="#fff" stroke-opacity=".6" fill="none"/></g>`;
+    } else {
+      const r = 7 + Math.sqrt(p.acres)*3.6;
+      g += `<g class="park${on}" data-id="${p.id}"><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#3E6E60" opacity=".85"/>
+            <g class="leaf" style="animation-delay:${(p.x%7)/3}s"><ellipse cx="${p.x-4}" cy="${p.y-3}" rx="6" ry="4.5" fill="#7FC8A9"/><ellipse cx="${p.x+4}" cy="${p.y-5}" rx="5" ry="4" fill="#9AD9BC"/></g></g>`;
+    }
+  });
+  // home pin
+  g += `<g transform="translate(${HOME.x} ${HOME.y-26})"><path d="M0 22 C-9 12 -10 6 -10 1 a10 10 0 0 1 20 0 c0 5 -1 11 -10 21Z" fill="#F2C230"/><circle cy="1" r="3.6" fill="#1F2A44"/></g>`;
+  // labels
+  const lab = { ngv:[22,2,"start"], lakshmi:[-19,2,"end"], leena:[19,10,"start"], agara:[0,46,"middle"] };
+  PARKS.forEach(p=>{ const [dx,dy,anc] = lab[p.id];
+    g += `<text x="${p.x+dx}" y="${p.y+dy}" text-anchor="${anc}" font-weight="${p.id===targetId?600:400}">${p.name}</text>`;
+    g += `<text class="sub" x="${p.x+dx}" y="${p.y+dy+13}" text-anchor="${anc}">${p.home?"home":p.km.toFixed(1)+" km"}</text>`; });
+  // route
+  let route = "";
+  if(!t.home){
+    const mx = (HOME.x+t.x)/2 + (t.y-HOME.y)*0.18, my = (HOME.y+t.y)/2 - (t.x-HOME.x)*0.18;
+    route = `M${HOME.x} ${HOME.y} Q${mx.toFixed(1)} ${my.toFixed(1)} ${t.x} ${t.y}`;
+    g += `<path id="routeDraw" class="route-draw" d="${route}"/><circle id="runner" r="5" fill="#fff" stroke="#1F2A44" stroke-width="2" cx="${HOME.x}" cy="${HOME.y}"/>`;
+  }
+  g += `<circle id="ripple" class="ripple" cx="${t.x}" cy="${t.y}" r="10"/>`;
+  svg.innerHTML = g;
+
+  const ripple = $("ripple");
+  const doRipple = () => { if(!reduce){ ripple.classList.remove("go"); void ripple.getBBox(); ripple.classList.add("go"); } };
+  if(!route){ doRipple(); return; }
+  const path = $("routeDraw"), runner = $("runner"), L = path.getTotalLength();
+  if(reduce || !animate){ path.setAttribute("class","route"); const e = path.getPointAtLength(L); runner.setAttribute("cx",e.x); runner.setAttribute("cy",e.y); return; }
+  path.style.strokeDasharray = L; path.style.strokeDashoffset = L;
+  const start = performance.now(), dur = 1400;
+  const step = now => {
+    const k = Math.min(1,(now-start)/dur), e = 1-Math.pow(1-k,3);
+    path.style.strokeDashoffset = L*(1-e);
+    const pt = path.getPointAtLength(L*e); runner.setAttribute("cx",pt.x); runner.setAttribute("cy",pt.y);
+    if(k<1) requestAnimationFrame(step);
+    else { path.style.strokeDasharray=""; path.style.strokeDashoffset=""; path.setAttribute("class","route"); doRipple(); }
+  };
+  requestAnimationFrame(step);
 }
 
 /* ---------- Two-city clock ---------- */
