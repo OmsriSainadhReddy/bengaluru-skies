@@ -41,7 +41,7 @@
   body[data-mood="rain"] .sun{opacity:0}
   body[data-mood="night"] .sun{background:radial-gradient(circle,#F4F1FF 0%,rgba(220,214,255,.35) 30%,rgba(220,214,255,0) 60%);width:90px;height:90px}
 
-  main{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:clamp(28px,6vh,64px) 22px 32vh}
+  main{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:clamp(96px,13vh,120px) 22px 32vh}
   .hello{font-size:1.05rem;margin:0;color:var(--ink-soft)}
   .hello strong{color:var(--ink);font-weight:600}
 
@@ -90,6 +90,15 @@
   .note.show{display:block}
   .retry{font:inherit;font-weight:600;color:var(--ink);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
 
+  .clocks{position:absolute;top:16px;right:16px;z-index:2;display:flex;background:var(--panel);border:1px solid var(--panel-line);
+          backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:16px;padding:8px 4px}
+  .clock{display:grid;grid-template-columns:auto auto;column-gap:7px;align-items:baseline;padding:0 12px}
+  .clock + .clock{border-left:1px solid var(--panel-line)}
+  .clock .city{grid-column:1 / -1;font-size:.78rem;color:var(--ink-soft);margin-bottom:2px}
+  .clock .time{font-family:"Young Serif",Georgia,serif;font-size:1.3rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .clock .wday{font-size:.78rem;color:var(--ink-soft);display:inline-flex;align-items:center;gap:4px}
+  .clock .wday svg{width:12px;height:12px}
+  @media (max-width:520px){.clocks{top:12px;right:12px;padding:6px 2px}.clock{padding:0 9px}.clock .time{font-size:1.1rem}}
   .reveal{opacity:0;transform:translateY(10px)}
   .ready .reveal{opacity:1;transform:none;transition:opacity .8s ease,transform .8s ease}
   .ready .reveal.d2{transition-delay:.25s}.ready .reveal.d3{transition-delay:.5s}
@@ -102,6 +111,11 @@
     <div class="sun"></div>
     <canvas id="fx"></canvas>
     <svg id="land" viewBox="0 0 1440 420" preserveAspectRatio="xMidYMax slice"></svg>
+  </div>
+
+  <div class="clocks" aria-label="Local times">
+    <div class="clock"><span class="city">Washington, DC</span><span class="time" id="tDC">&nbsp;</span><span class="wday" id="dDC"></span></div>
+    <div class="clock"><span class="city">Bengaluru</span><span class="time" id="tBLR">&nbsp;</span><span class="wday" id="dBLR"></span></div>
   </div>
 
   <main id="app">
@@ -374,6 +388,20 @@ function startFx(){
   };
   frame();
 }
+
+/* ---------- Two-city clock ---------- */
+const SUN_ICON = `<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.2" fill="#F2C230"/></svg>`;
+const MOON_ICON = `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M8.6 8.9A4.2 4.2 0 0 1 4.3 1.6a4.4 4.4 0 1 0 4.3 7.3Z" fill="#C9B8F0"/></svg>`;
+function tickClocks(){
+  [["America/New_York","tDC","dDC"],["Asia/Kolkata","tBLR","dBLR"]].forEach(([tz,t,d])=>{
+    const now = new Date();
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:tz,hour:"numeric",minute:"2-digit",weekday:"short",hour12:true}).formatToParts(now).map(x=>[x.type,x.value]));
+    const h24 = +new Intl.DateTimeFormat("en-US",{timeZone:tz,hour:"numeric",hourCycle:"h23"}).format(now);
+    $(t).textContent = `${p.hour}:${p.minute} ${p.dayPeriod.toLowerCase()}`;
+    $(d).innerHTML = `${h24>=6 && h24<18 ? SUN_ICON : MOON_ICON}${p.weekday}`;
+  });
+}
+tickClocks(); setInterval(tickClocks, 15000);
 
 load().then(()=>requestAnimationFrame(()=>document.body.classList.add("ready")));
 setInterval(load, 30*60*1000);
